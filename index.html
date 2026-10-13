@@ -66,9 +66,25 @@ const cyl=(parent,r1,r2,h,color,x,y,z)=>{const m=new THREE.Mesh(new THREE.Cylind
 for(const o of state.objects){const room=o.type==='room';const g=new THREE.Group();g.position.set(o.x,0,o.y);g.rotation.y=-(o.rotation||0)*Math.PI/180;
 const w=o.w,d=o.h,col=o.color||'#89949b';
 if(room){makeBox(g,w,.055,d,col,0,-.03,0);
-if(state.wallsVisible){const wallColor=state.after?'#8ca9b5':'#c2cdd2';const H=Math.min(state.wallHeight||2.5,1.45);for(const [x,z,ww,dd] of [[0,-d/2,w,.09],[0,d/2,w,.09],[-w/2,0,.09,d],[w/2,0,.09,d]]){const mesh=makeBox(g,ww,H,dd,wallColor,x,H/2,z);mesh.material.transparent=false;mesh.material.opacity=1;mesh.material.depthWrite=true;mesh.material.side=THREE.DoubleSide}}}
-else if(o.type==='door'){makeBox(g,w,.07,d,'#b18f6b',0,.045,0);const leaf=makeBox(g,w,.90,.06,'#a58969',0,.47,0);leaf.rotation.y=.68;leaf.position.x=w*.27;}
-else if(o.type==='window'){makeBox(g,w,.08,d,'#8abbd0',0,.92,0);makeBox(g,.045,.8,d,'#93b7c9',0,.92,0)}
+if(state.wallsVisible){const wallColor=state.after?'#8ca9b5':'#c2cdd2';const H=Math.min(state.wallHeight||2.5,1.45),thick=.095;
+const openings=state.objects.filter(it=>it.type==='door'||it.type==='window').map(it=>({it,dx:it.x-o.x,dz:it.y-o.y}));
+// Each wall is split at openings so a door creates a real passage rather than a painted rectangle.
+for(const edge of ['north','south','west','east']){
+const horizontal=edge==='north'||edge==='south',length=horizontal?w:d;
+const boundary=horizontal?(edge==='north'?-d/2:d/2):(edge==='west'?-w/2:w/2);
+const gaps=[];
+for(const {it,dx,dz} of openings){const cross=horizontal?dz:dx,along=horizontal?dx:dz;
+if(Math.abs(cross-boundary)>.37||Math.abs(along)>length/2+.2)continue;
+const span=Math.min(1.18,Math.max(.55,it.type==='door'?it.w:Math.max(it.w,it.h)));
+gaps.push({from:Math.max(-length/2,along-span/2),to:Math.min(length/2,along+span/2),kind:it.type});}
+gaps.sort((a,b)=>a.from-b.from);
+const wallPart=(a,b,base=0,hh=H)=>{if(b-a<.025||hh<.025)return;const pos=(a+b)/2;makeBox(g,horizontal?b-a:thick,hh,horizontal?thick:b-a,wallColor,horizontal?pos:boundary,base+hh/2,horizontal?boundary:pos)};
+let cursor=-length/2;
+for(const cut of gaps){if(cut.from>cursor)wallPart(cursor,cut.from);if(cut.kind==='door'){wallPart(cut.from,cut.to,1.04,Math.max(.05,H-1.04))}else{wallPart(cut.from,cut.to,0,.58);wallPart(cut.from,cut.to,1.22,Math.max(.05,H-1.22))}cursor=Math.max(cursor,cut.to);}
+wallPart(cursor,length/2);
+}}}
+else if(o.type==='door'){makeBox(g,w,.07,d,'#b18f6b',0,.045,0);const leaf=makeBox(g,w*.86,.93,.052,'#a58969',0,.47,0);leaf.rotation.y=.72;leaf.position.x=w*.24;}
+else if(o.type==='window'){makeBox(g,w,.045,d,'#8abbd0',0,.58,0);makeBox(g,w,.045,d,'#8abbd0',0,1.22,0);makeBox(g,.045,.68,d,'#93b7c9',0,.90,0)}
 else if(o.type==='sofa'){makeBox(g,w,.24,d,col,0,.43,0);makeBox(g,w,.68,.17,col,0,.64,-d/2+.08);for(let x of [-w/2+.1,w/2-.1])makeBox(g,.19,.5,d,col,x,.53,0);for(let x of [-w/4,w/4])makeBox(g,w*.43,.13,d*.62,'#91a5ac',x,.59,.09)}
 else if(o.type==='chair'){cyl(g,.23,.23,.08,col,0,.47,0);makeBox(g,w*.8,.5,.10,col,0,.74,-d/2+.07);for(let x of [-.18,.18])for(let z of [-.18,.18])makeBox(g,.045,.45,.045,'#4e5559',x,.225,z)}
 else if(o.type==='plant'){cyl(g,w*.34,w*.25,.36,'#bc9e7e',0,.18,0);cyl(g,.035,.045,.78,'#5d8567',0,.67,0);for(let i=0;i<7;i++){let a=i*Math.PI*2/7;cyl(g,.18,.025,.10,'#6ca382',Math.cos(a)*.19,.76+Math.sin(i*2)*.09,Math.sin(a)*.19)}}
